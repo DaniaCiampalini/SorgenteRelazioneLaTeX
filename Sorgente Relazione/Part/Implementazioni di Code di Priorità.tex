@@ -1,0 +1,530 @@
+\part{Implementazioni di Code di Priorità}
+
+\begin{tcolorbox}[colback=lightgray!20,%gray background
+                  colframe=black,% black frame colour
+                  arc=3mm, auto outer arc,]
+                  
+    \textbf{Esercizio 1}
+    \begin{itemize}
+    
+    \item Vogliamo analizzare le differenze tra diverse implementazioni di code di priorità:
+
+    
+        \begin{itemize}
+          
+            \item Heap
+                
+            \item Lista concatenata
+            
+            \item Lista concatenata ordinata
+            
+        \end{itemize}
+
+       \item \textbf{Nota}: La lista deve essere implementata considerando strutture collegate con puntatori e non la struttura dati lista di Python. 
+        
+    \end{itemize}
+\end{tcolorbox}
+
+\section{Spiegazione teorica del problema }
+
+\subsection{Introduzione}
+\label{sec:Introduzione_1}
+In questa sezione si analizzano diverse implementazioni delle code di priorità, con l’obiettivo di metterle a confronto attraverso lo studio della loro complessità computazionale. L’attenzione è focalizzata su tre operazioni fondamentali — \textbf{inserimento}, \textbf{ricerca} ed \textbf{estrazione del valore con priorità massima} — in quanto costituiscono le principali funzionalità offerte da una coda di priorità e sono le più frequentemente utilizzate in applicazioni reali.
+Le strutture considerate includono l’\textbf{heap binario}, la \textbf{lista concatenata} e la \textbf{lista concatenata ordinata}, con la precisazione che per le implementazioni basate su liste si farà uso esclusivo di strutture dinamiche collegate mediante puntatori, escludendo l’impiego della struttura dati list offerta nativamente dal linguaggio Python.
+\subsection{Definizione struttura dati}
+\label{sec:DefinizioneStrutturaDati_1}
+Una \textbf{coda di priorità} è una struttura dati che serve a mantenere un insieme dinamico S di elementi, ciascuno con un valore associato detto \textbf{chiave}. Ci sono due tipi di code di priorità: code di \textbf{max-priorità} e code di \textbf{min-priorità}.
+Una coda di max-priorità supporta le seguenti operazioni:
+\begin{itemize}
+      \item  \texttt{INSERT(S, x, k)} inserisce l'elemento x con chiave k nell'insieme S;
+      \item  \texttt{MAXIMUM(S)} restituisce l'elemento di S con la chiave più grande;
+      \item \texttt{EXTRACT-MAX(S)} rimuove e restituisce l'elemento di S con la chiave più grande;
+      \item \texttt{INCREASE-KEY(S, x, k)} aumenta il valore della chiave dell'elemento x al nuovo valore k, che si suppone sia grande almeno quanto il valore attuale della chiave dell'elemento x.
+ \end{itemize}
+
+Le code di min-priorità supportano operazioni analoghe, con la differenza che gli elementi vengono gestiti in ordine crescente rispetto ai valori di priorità. 
+
+Poiché le differenze implementative sono minime e simmetriche rispetto a quelle delle code di max-priorità, in questo esperimento ci concentreremo esclusivamente sull'analisi delle prestazioni delle code di \textit{max-priorità}.
+
+\subsection{Criteri di selezione delle operazioni sperimentali}
+\label{sec:CriteriDiSelezioneDelleOperazioni Sperimentali_1}
+Nel contesto del nostro esperimento, ci concentreremo sulle tre operazioni fondamentali:
+\texttt{INSERT}, \texttt{MAXIMUM} e \texttt{EXTRACT-MAX}. Queste sono sufficienti a mettere in luce le differenze strutturali e di prestazioni tra le varie implementazioni delle code di priorità.
+
+\vspace{1em}
+
+L'operazione \texttt{INCREASE-KEY} risulta meno adatta in un confronto generico tra strutture dati, in quanto la sua implementazione  in strutture come la lista concatenata diventa inefficiente o poco chiara senza una struttura di supporto (come un dizionario di puntatori), introducendo un disallineamento rispetto alle altre operazioni in termini di semplicità e coerenza del confronto. 
+
+In scenari pratici, \texttt{INCREASE-KEY} è particolarmente rilevante solo in contesti specifici (es. Dijkstra), dove le strutture di priorità devono gestire aggiornamenti efficienti delle distanze stimate. Tuttavia, tali casi richiedono anche un meccanismo di tracciamento degli elementi all'interno della coda che esula dallo scopo di questo confronto sperimentale.
+
+Per questi motivi, si è deciso di non includere \texttt{INCREASE-KEY} tra le operazioni oggetto dell’analisi empirica.
+
+
+\subsection{Nomenclatura e convenzioni}
+\label{sec:NomenclaturaEConvenzioni_1}
+
+Nel corso dell'esperimento adotteremo alcune convenzioni terminologiche e simboliche utili alla chiarezza e alla formalizzazione dei risultati:
+
+\paragraph{Notazione asintotica}
+Per descrivere la complessità computazionale delle operazioni si usano le notazioni classiche della teoria degli algoritmi:
+
+\begin{itemize}
+    \item \( \mathcal{O}(f(n)) \): limite superiore asintotico (complessità nel caso peggiore).
+    \item \( \Theta(f(n)) \): ordine di crescita esatto (quando il caso peggiore e il caso migliore coincidono asintoticamente).
+\end{itemize}
+
+\paragraph{Simboli ricorrenti}
+Nel testo useremo:
+
+\begin{itemize}
+    \item \( n \): il numero totale di elementi contenuti nella struttura dati al momento considerato.
+    \item \( h \): l'altezza della struttura (nel caso dell'heap, \( h = \lfloor \log_2 n \rfloor \)).
+\end{itemize}
+
+\subsection{Panoramica delle strutture analizzate}
+\label{PanoramicaDelleStruttureAnalizzate_1}
+
+Nel presente esperimento si analizzano e confrontano tre diverse implementazioni di code di priorità:
+
+\begin{itemize}
+    \item \textbf{Heap binario}
+    \item \textbf{Lista concatenata non ordinata (LL)}
+    \item \textbf{Lista concatenata ordinata (SLL)}
+\end{itemize}
+
+\subsection*{Heap binario}
+
+L'heap binario è una struttura dati che rappresenta un albero binario quasi completo, implementato tramite array. Le sue principali proprietà sono:
+
+\begin{itemize}
+    \item Ogni nodo ha al massimo due figli.
+    \item L'albero è completo fino all'ultimo livello, riempito da sinistra verso destra.
+    \item Essendo un albero binario, l'heap è dotato di un'altezza pari a: \( h = \lfloor \log_2 n \rfloor \).
+    \item In un \textit{max-heap}, ogni nodo ha una chiave maggiore o uguale a quelle dei suoi figli.
+\end{itemize}
+
+\textbf{Prestazioni teoriche:}
+\begin{itemize}
+    \item \texttt{INSERT}: \( \mathcal{O}(\log n) \) nel caso medio e peggiore poichè si deve scorrere tutta l'altezza dell'heap, \( \mathcal{O}(1) \) nel caso migliore cioè se l'elemento va in fondo.
+    \item \texttt{MAXIMUM}: \( \mathcal{O}(1) \) in tutti i casi poichè il massimo è sempre alla radice.
+    \item \texttt{EXTRACT-MAX}: \( \mathcal{O}(\log n) \) nel caso medio e peggiore, \( \mathcal{O}(1) \) nel caso migliore se heap ha solo un elemento o la ristrutturazione è minima.
+\end{itemize}
+
+\textbf{Differenze rispetto alle altre:} L'heap offre un buon compromesso fra le varie operazioni, risultando generalmente bilanciato. Rispetto alle liste offre prestazioni più costanti in contesti di utilizzo intensivo.
+
+\begin{figure}[H]
+    \centering
+        \includegraphics[width=0.7\textwidth]{Resources/Heap.png}
+        \caption{Heap binario con max-heap}
+        \label{fig:Heap}
+\end{figure}
+
+
+\subsection*{Lista concatenata non ordinata (LL o LC)}
+
+In questa struttura ogni nuovo elemento viene inserito in testa alla lista, senza alcun ordinamento.
+
+\textbf{Prestazioni teoriche:}
+\begin{itemize}
+    \item \texttt{INSERT}: \( \mathcal{O}(1) \) in tutti i casi in quanto si fa semre l'inserimento in testa.
+    \item \texttt{MAXIMUM}: \( \mathcal{O}(n) \) nel caso medio e peggiore, ovvero quano si deve scorrere tutta la lista, \( \mathcal{O}(1) \) nel caso migliore se il massimo è già in testa.
+    \item \texttt{EXTRACT-MAX}: \( \mathcal{O}(n) \) nel caso medio e peggiore, \( \mathcal{O}(1) \) nel caso migliore (se il massimo è in testa).
+\end{itemize}
+
+\textbf{Differenze rispetto alle altre:} Semplice da implementare, ma inefficiente per accessi e rimozioni. È indicata solo in scenari con molti inserimenti e poche estrazioni.
+
+\subsection*{Lista concatenata ordinata (SLL O LCO)}
+
+Questa lista mantiene gli elementi ordinati per priorità decrescente; l'elemento massimo si trova sempre in testa.
+
+\textbf{Prestazioni teoriche:}
+\begin{itemize}
+    \item \texttt{INSERT}: \( \mathcal{O}(n) \) nel caso medio e peggiore cioè se l'inserimento avviene in coda o nel mezzo, \( \mathcal{O}(1) \) nel caso migliore (inserimento in testa).
+    \item \texttt{MAXIMUM}: \( \mathcal{O}(1) \) in tutti i casi perchè è sempre l'elemento in testa.
+    \item \texttt{EXTRACT-MAX}: \( \mathcal{O}(1) \) in tutti i casi (rimozione in testa).
+\end{itemize}
+
+\textbf{Differenze rispetto alle altre:} È esattamente il contrario della lista non ordinata: costosa per inserimenti ma ottimale per accesso e rimozione del massimo.
+
+\subsection{Assunzioni e ipotesi sperimentali}
+\label{AssunzioniEIpotesiSperimentali_1}
+
+L'obiettivo del nostro esperimento è verificare sperimentalmente la corrispondenza tra le complessità teoriche e i tempi di esecuzione reali osservati. Ci aspettiamo i seguenti comportamenti:
+
+\begin{itemize}
+    \item L'heap dovrebbe garantire buone prestazioni complessive, con costi logaritmici per le operazioni principali, anche nei casi peggiori.
+    \item La lista non ordinata dovrebbe eccellere in \texttt{INSERT}, ma degradare fortemente in \texttt{EXTRACT-MAX} e \texttt{MAXIMUM}, soprattutto in scenari dove il massimo si trova in fondo.
+    \item La lista ordinata dovrebbe penalizzare \texttt{INSERT} per garantire \texttt{MAXIMUM} e \texttt{EXTRACT-MAX} in tempo costante. Tuttavia, la sua efficienza all'inserimento può variare molto a seconda della posizione dove va inserito il nuovo elemento.
+\end{itemize}
+\noindent Di seguito si riporta una tabella comparativa delle complessità teoriche delle operazioni, nel caso medio, per ciascuna implementazione di coda con priorità:
+
+\begin{table}[H]
+\centering
+\begin{tabular}{|l|c|c|c|}
+\hline
+\textbf{Struttura} & \texttt{INSERT} & \texttt{MAXIMUM} & \texttt{EXTRACT-MAX} \\
+\hline
+Heap binario       & \( \mathcal{O}(\log n) \) & \( \mathcal{O}(1) \) & \( \mathcal{O}(\log n) \) \\
+Lista non ordinata & \( \mathcal{O}(1) \)      & \( \mathcal{O}(n) \) & \( \mathcal{O}(n) \)      \\
+Lista ordinata     & \( \mathcal{O}(n) \)      & \( \mathcal{O}(1) \) & \( \mathcal{O}(1) \)      \\
+\hline
+\end{tabular}
+\caption{Complessità teoriche delle operazioni nel caso medio per le tre strutture analizzate}
+\label{tab:Table_1}
+\end{table}
+
+\noindent Il nostro obiettivo in questo esperimento è verificare sperimentalmente la veridicità delle complessità teoriche riportate nella Table~\ref{tab:Table_1}, e determinare in quali condizioni una certa implementazione di coda con priorità risulti più efficiente rispetto alle altre.
+
+
+\newpage
+\section{Documentazione del codice}
+\label{DocumentazioneCodice_3}
+
+
+Per valutare l'efficienza di diverse implementazioni di code di priorità, abbiamo sviluppato tre classi principali: \textbf{MaxHeap}, \textbf{LinkedList} e \textbf{SortedLinkedList}. Ognuna di queste classi incarna un approccio distinto per la gestione delle operazioni fondamentali di una coda di priorità: inserimento di un elemento, estrazione dell'elemento con priorità massima e consultazione dell'elemento con priorità massima.
+
+\subsection{Implementazione tramite Max-Heap}
+
+La classe \textbf{MaxHeap} realizza una coda di priorità utilizzando un array, conformemente agli algoritmi standard per la gestione di uno heap binario massimizzato, come descritto nella letteratura algoritmica di riferimento. Le operazioni chiave, quali \texttt{max\_heapify} (ripristino della proprietà di max-heap), \texttt{heap\_extract\_max} (estrazione del massimo), \texttt{heap\_increase\_key} (incremento della chiave) e \texttt{max\_heap\_insert} (inserimento con mantenimento della proprietà di max-heap), sono implementate seguendo fedelmente le procedure algoritmiche consolidate.
+
+\subsection{Implementazioni basate su Liste Concatenate}
+
+La classe \textbf{Node}, definita nel modulo \texttt{node.py}, costituisce l'elemento fondamentale per la costruzione delle strutture \textbf{LinkedList} e \textbf{SortedLinkedList}. La relazione tra le liste e i nodi è di tipo aggregazione: ogni lista contiene un riferimento al primo nodo (\texttt{head}), e ciascun nodo contiene un puntatore al nodo successivo (\texttt{next}).
+
+\subsubsection{Lista Concatenata  (Non Ordinata)}
+
+La classe \textbf{LinkedList} implementa una lista concatenata semplice in cui gli elementi non sono mantenuti in un ordine specifico. Come anticipato, si avvale della classe \textbf{Node} per rappresentare i singoli elementi della lista. In questa implementazione, l'inserimento di un nuovo elemento avviene sempre in testa alla lista. Al contrario, l'identificazione e la successiva rimozione dell'elemento massimo richiedono una scansione sequenziale dell'intera lista.
+
+\subsubsection{Lista Concatenata Ordinata}
+
+La classe \textbf{SortedLinkedList} eredita le funzionalità di base da \textbf{LinkedList} (\textit{ereditarietà}) ma ne ridefinisce il comportamento dell'operazione di inserimento. L'obiettivo è mantenere gli elementi della lista ordinati in modo decrescente in base alla loro priorità. Questa strategia comporta un'ottimizzazione delle operazioni \texttt{maximum} (consultazione del massimo) e \texttt{extract\_max} (estrazione del massimo), poiché l'elemento con la priorità più alta si trova sempre in testa alla lista (\texttt{head}). Tuttavia, il mantenimento dell'ordinamento introduce un costo computazionale maggiore per l'operazione di inserimento, che ora richiede una ricerca della posizione corretta all'interno della lista.
+
+\subsection{Visualizzazione e Confronto delle Prestazioni}
+
+Per facilitare la visualizzazione e il confronto delle prestazioni delle diverse implementazioni, è stata sviluppata la classe \textbf{PlotGenerator}. Questa classe ha il compito di raccogliere e aggregare i tempi medi di esecuzione per ciascuna operazione fondamentale (inserimento, estrazione del massimo) e per diverse dimensioni del set di dati. I risultati di questa analisi vengono quindi presentati graficamente, salvati in formato PDF e visualizzati a schermo per una più agevole interpretazione.
+
+\subsection{Diagramma UML delle Classi}
+
+Il diagramma UML seguente illustra le relazioni strutturali tra le classi definite nel sistema:
+
+
+come si può osservare dal diagramma, \textbf{SortedLinkedList} è una specializzazione di \textbf{LinkedList} (relazione di ereditarietà indicata da una freccia con punta a triangolo vuota). Entrambe le classi \textbf{LinkedList} e \textbf{SortedLinkedList} utilizzano la classe \textbf{Node} attraverso una relazione di aggregazione (indicata da un rombo vuoto lato \textbf{LinkedList}/\textbf{SortedLinkedList}).  
+
+\begin{figure}[H]
+    \includegraphics[width=1.0\textwidth]{Resources/UML.png}
+    \caption{Diagramma UML delle classi}
+    \label{fig:DiagrammaUML_3}
+\end{figure}
+
+Come si può osservare, la classe \texttt{SortedLinkedList} estende \texttt{LinkedList}, mentre entrambe le strutture utilizzano \texttt{Node} per costruire la lista concatenata. Infine, la classe \textbf{PlotGenerator} è responsabile della visualizzazione dei risultati, senza una relazione diretta di composizione o ereditarietà con le strutture dati implementate.
+
+
+\begin{figure}[H]
+\centering
+    \includegraphics[width=0.6\textwidth]{Resources/packages.png}
+    \caption{Relazione tra i moduli del progetto$^1$}
+    \label{fig:Packages_3}
+\end{figure}
+
+\subsection{Descrizione dei metodi implementati}
+\label{sec:DescrizioneMetodiImplementati_3}
+In questa sezione, si procederà con la descrizione dettagliata delle funzionalità di ciascun metodo implementato all'interno delle classi \textbf{LinkedList}, \textbf{SortedLinkedList} e \textbf{MaxHeap}, che costituiscono le diverse strategie per l'implementazione di una coda di priorità analizzate in questo studio.
+
+\begin{itemize}
+
+    \item \textbf{LinkedList}
+    \begin{itemize}
+        \item \textbf{\_\_init\_\_()}: Inizializza una nuova lista concatenata impostando l'attributo \texttt{head} a \texttt{None}, indicando una lista inizialmente vuota.
+        \item \textbf{insert(value)}: Crea un nuovo nodo con il valore fornito e lo inserisce all'inizio della lista. Il puntatore \texttt{next} del nuovo nodo viene impostato sulla vecchia testa e la \texttt{head} della lista viene aggiornata al nuovo nodo.
+        \item \textbf{maximum()}: Restituisce il valore massimo presente nella lista. Se la lista è vuota, solleva un'eccezione. Itera attraverso la lista mantenendo traccia del valore massimo incontrato.
+        \item \textbf{extract\_max()}: Estrae e restituisce il valore massimo dalla lista. Se la lista è vuota, solleva un'eccezione. Individua il nodo contenente il valore massimo, aggiorna i puntatori per rimuoverlo dalla lista (gestendo anche il caso in cui il massimo sia in testa) e restituisce il valore estratto.
+    \end{itemize}
+
+\footnote{Questo schema è stato realizzato  usando la libreria integrata Pylint. }
+\vspace{2em}
+ 
+    \item \textbf{SortedLinkedList} (eredita da \textbf{LinkedList})
+    \begin{itemize}
+        \item \textbf{insert(value)}: Esegue l'inserimento di un nuovo nodo mantenendo la lista ordinata in modo decrescente. Se la lista è vuota o il nuovo valore è maggiore della testa, il nuovo nodo viene inserito in testa. Altrimenti, scorre la lista fino a trovare la posizione corretta per inserire il nuovo nodo, preservando l'ordinamento.
+        \item \textbf{maximum()}: Restituisce il valore massimo presente nella lista ordinata. Poiché la lista è mantenuta in ordine decrescente, il massimo si trova sempre in testa e viene restituito direttamente (solleva un'eccezione se la lista è vuota).
+        \item \textbf{extract\_max()}: Estrae e restituisce il valore massimo dalla lista ordinata. Anche in questo caso, il massimo è in testa. La testa viene aggiornata al nodo successivo e il valore massimo viene restituito (solleva un'eccezione se la lista è vuota).
+    \end{itemize}
+
+
+
+    \item \textbf{MaxHeap}
+    \begin{itemize}
+        \item \textbf{\_\_init\_\_()}: Inizializza un nuovo max-heap come una lista vuota e imposta la dimensione dell'heap a zero.
+        \item \textbf{left(i)}: Restituisce l'indice del figlio sinistro del nodo all'indice \textit{i}.
+        \item \textbf{right(i)}: Restituisce l'indice del figlio destro del nodo all'indice \textit{i}.
+        \item \textbf{parent(i)}: Restituisce l'indice del padre del nodo all'indice \textit{i}.
+        \item \textbf{max\_heapify(i)}: Mantiene la proprietà del max-heap a partire dal nodo all'indice \textit{i}. Confronta il nodo con i suoi figli e, se necessario, lo scambia con il figlio più grande, ripetendo l'operazione sul sottoalbero interessato.
+        \item \textbf{build\_max\_heap(array)} : Costruisce un max-heap da un array dato. Inizializza l'heap con l'array e poi applica \texttt{max\_heapify} a partire dall'ultimo nodo non foglia fino alla radice.
+        \item \textbf{heap\_maximum()} : Restituisce il valore massimo (radice) del max-heap (solleva un'eccezione se l'heap è vuoto).
+        \item \textbf{heap\_extract\_max()} : Estrae e restituisce il valore massimo (radice) dal max-heap. Sostituisce la radice con l'ultimo elemento, decrementa la dimensione dell'heap e ripristina la proprietà del max-heap sulla nuova radice (solleva un'eccezione se l'heap è vuoto).
+        \item \textbf{heap\_increase\_key(i, key)} : Aumenta il valore della chiave del nodo all'indice \textit{i} al nuovo valore \textit{key}, mantenendo la proprietà del max-heap risalendo l'albero e scambiando il nodo con il suo padre se necessario (solleva un'eccezione se la nuova chiave è minore di quella corrente).
+        \item \textbf{max\_heap\_insert(key)} : Inserisce una nuova chiave nel max-heap. Aumenta la dimensione dell'heap, aggiunge un valore temporaneo ($-\infty$) e poi utilizza \texttt{heap\_increase\_key} per posizionare correttamente la nuova chiave.
+    \end{itemize}
+    
+\subsection{Descrizione dei metodi per la Visualizzazione e l'Analisi delle Prestazioni}
+\label{sec:DescrizioneMetodiPlottingMain}
+Questa sezione illustra le funzionalità dei metodi implementati nella classe \textbf{PlotGenerator} e nelle funzioni principali del modulo \texttt{main.py} utilizzate per la misurazione e l'analisi delle prestazioni delle strutture dati.
+
+\begin{itemize}
+
+    \item \textbf{Classe \texttt{PlotGenerator}}
+    \begin{itemize}
+        \item \textbf{\_\_init\_\_(output\_dir="grafici\_output")}: Inizializza un oggetto \textbf{PlotGenerator}. Questa operazione crea la directory specificata da \texttt{output\_dir} se non esiste, dove verranno salvati tutti i grafici generati.
+        \item \textbf{plot\_times(sizes, data\_dict, title="", xlabel="", ylabel="", filename=None, show=False)}: Genera un grafico a linee che mostra i tempi di esecuzione per diverse strutture dati o diverse operazioni, in funzione della dimensione dell'input (\texttt{sizes}). Il parametro \texttt{data\_dict} è un dizionario le cui chiavi sono le etichette delle curve (es. nomi delle strutture dati o operazioni) e i valori sono liste dei tempi misurati. Permette di personalizzare titolo, etichette degli assi e il nome del file di output.
+        \item \textbf{plot\_single\_curve(sizes, y\_values, title="", xlabel="", ylabel="", filename=None, show=False, y\_ref=None)}: Genera un grafico a linea singola, utile per visualizzare il rapporto $T(n)/f(n)$ o la complessità costante. Accetta una lista di dimensioni \texttt{sizes} e i corrispondenti valori \texttt{y\_values} da plottare. Include la possibilità di aggiungere una linea di riferimento orizzontale (\texttt{y\_ref}) per evidenziare un valore medio o una costante asintotica, regolando dinamicamente i limiti dell'asse Y per un miglior focus.
+    \end{itemize}
+
+    \item \textbf{Funzioni Principali nel \texttt{main.py}}
+    \begin{itemize}
+        \item \textbf{media\_mobile(lista, finestra=3)}: Calcola la media mobile di una lista di valori utilizzando una finestra specificata. Viene impiegata per smussare le curve dei tempi di esecuzione nei grafici, rendendoli più leggibili e meno soggetti a fluttuazioni casuali.
+        \item \textbf{benchmark\_structure(structure\_class, sizes, repeats=5)}: Misura i tempi di esecuzione delle operazioni di \texttt{Insert}, \texttt{Maximum} ed \texttt{Extract Max} per una data classe di struttura dati (\texttt{structure\_class}) su un range di dimensioni dell'input specificato da \texttt{sizes}. Ogni misurazione viene ripetuta \texttt{repeats} volte per ottenere una media più robusta. Restituisce tre liste contenenti i tempi medi per singola operazione (divisi per $n$) per inserimento, massimo ed estrazione.
+        \item \textbf{calcola\_rapporti(dati, sizes, tipo="log")}: Calcola il rapporto tra i tempi di esecuzione misurati (\texttt{dati}) e una funzione di complessità asintotica specificata dal parametro \texttt{tipo} (es. $\log n$, $n$, o costante). Questo metodo è fondamentale per verificare sperimentalmente se il comportamento osservato delle operazioni segue la complessità teorica attesa ($T(n) / f(n) \to \text{costante}$).
+        \item \textbf{main()}: La funzione principale che orchestra l'intero processo di benchmarking e generazione dei grafici. Definisce le dimensioni dei dataset da testare, chiama la funzione \texttt{benchmark\_structure} per ciascuna implementazione di coda di priorità (\texttt{MaxHeap}, \texttt{LinkedList}, \texttt{SortedLinkedList}), e poi utilizza le istanze di \texttt{PlotGenerator} per produrre una serie di grafici comparativi (tempi per operazione su diverse strutture, tempi per struttura sulle diverse operazioni, benchmark esteso per \texttt{MaxHeap}) e grafici di rapporto ($T(n)/\log n$) per validare le complessità asintotiche.
+    \end{itemize}
+
+\end{itemize}
+    
+\newpage
+\section{Descrizione degli esperimenti condotti e analisi dei risultati sperimentali}
+
+\subsection{Dati utilizzati}
+\label{sec:DatiUtilizzati}
+
+Per le comparazioni principali, sono stati utilizzati i seguenti valori di $n$:
+\[
+n \in \{1000, 2000, 4000, 8000, 16000\}
+\]
+Queste dimensioni sono state scelte per osservare l'andamento delle prestazioni su input crescenti, includendo sia casi moderati che più estesi.
+
+Data la particolare efficienza del \textbf{MaxHeap}, è stato eseguito anche un benchmark separato su scala più ampia:
+\[
+n \in \{1000, 3000, 5000, \dots, 99000, 100000\} \quad (\text{passi di } 2000)
+\]
+Questo ha permesso di validare sperimentalmente l'andamento logaritmico previsto per le sue operazioni.
+
+I dati inseriti sono interi casuali uniformemente distribuiti nell'intervallo $[1, 10^6]$, per evitare distorsioni legati all’ordine o al contenuto degli elementi.
+
+\subsection{Misurazioni}
+\label{sec:Misurazioni}
+
+Le misurazioni dei tempi di esecuzione sono state effettuate per ogni struttura, dimensione $n$ e operazione. Il procedimento è il seguente:
+
+\begin{itemize}
+    \item \textbf{Ripetizioni multiple}: ogni test è stato ripetuto $r=3$ volte per ridurre le fluttuazioni casuali e ottenere stime più stabili.
+    
+    \item \textbf{Tempo totale per $n$ operazioni}: per ogni struttura e operazione, è stato misurato il tempo complessivo $T_{\text{tot}}(n)$ per eseguire $n$ operazioni consecutive (es. $n$ insert consecutivi su input casuale di lunghezza $n$).
+    
+    \item \textbf{Tempo medio per singola operazione}: per ogni valore di $n$, il tempo medio è stato calcolato come:
+    \begin{equation}
+        T(n) = \frac{1}{r} \sum_{i=1}^r \frac{T_{\text{tot},i}(n)}{n}
+        \label{eq:tempo_medio}
+    \end{equation}
+    dove $T_{\text{tot},i}(n)$ è il tempo totale rilevato alla $i$-esima ripetizione.
+    
+    \item \textbf{Strumento di misura}: è stato utilizzato \texttt{time.perf\_counter()} di Python per una misurazione precisa, catturando il tempo prima e dopo l'esecuzione del blocco di codice da testare.
+    
+    \item \textbf{Smussamento tramite media mobile}: per migliorare la leggibilità dei grafici e attenuare eventuali picchi anomali, i dati sono stati filtrati con una media mobile di finestra $w=3$:
+    \begin{equation}
+        T_{\text{sm}}(n) = \frac{1}{w} \sum_{j=0}^{w-1} T(n-j)
+        \label{eq:media_mobile}
+    \end{equation}
+    
+    \item \textbf{Verifica empirica della complessità}: per validare le complessità attese, sono stati calcolati i rapporti:
+    \begin{equation}
+        R(n) = \frac{T(n)}{f(n)}
+        \label{eq:rapporto_generico}
+    \end{equation}
+    dove $f(n)$ rappresenta la funzione teorica attesa per l'operazione considerata (es. $f(n) = \log n$ per MaxHeap). Se $R(n)$ tende a una costante, la complessità empirica è coerente con quella teorica.
+
+    Questa analisi è stata applicata in particolare alle operazioni \texttt{Insert} ed \texttt{Extract Max} su \texttt{MaxHeap}, con:
+    \begin{equation}
+        R_{\text{Insert}}(n) = \frac{T_{\text{Insert}}(n)}{\log n} \qquad
+        R_{\text{Extract}}(n) = \frac{T_{\text{Extract}}(n)}{\log n}
+        \label{eq:rapporti_maxheap}
+    \end{equation}
+\end{itemize}
+
+
+
+
+\begin{tcolorbox}[colback=lightgray!20,
+                  colframe=black,
+                  arc=3mm, auto outer arc]
+
+\textbf{NOTA IMPORTANTE}: Il confronto tra le strutture dati è stato eseguito su un range identico di valori di fino a $n = 16\,000$, per numeri più elevati no. In particolare, \texttt{LinkedList} e \texttt{SortedLinkedList} sono risultati troppo lenti su input di grandi dimensioni, rendendo impraticabile la raccolta di dati significativi oltre una certa soglia (tipicamente $n > 50\,000$).
+
+Sarebbe stato ideale estendere il benchmark anche per \texttt{MaxHeap} a valori molto più alti (nell’ordine dei milioni), poiché le complessità asintotiche si riferiscono al comportamento per $n \to \infty$. Tuttavia, per ragioni di tempo e risorse computazionali, ho scelto un compromesso bilanciando accuratezza e fattibilità.
+\end{tcolorbox}
+   
+
+\subsection{Risultati sperimentali e commenti analitici}
+\label{sec:RisultatiSperimentaliCommentiAnalitici}
+
+\subsubsection{Confronto per struttura dati}
+
+Nei grafici per singola struttura (\texttt{MaxHeap}, \texttt{LinkedList}, \texttt{SortedLinkedList}), vediamo il comportamento delle tre operazioni principali: \texttt{Insert}, \texttt{Maximum} ed \texttt{Extract Max}. 
+\texttt{MaxHeap} (Figure \ref{fig:maxheap_op}) si distingue per regolarità: le curve di \texttt{Insert} e \texttt{Extract Max} crescono come previsto in tempi intermedi rispetto a quelli delle altre due strutture dati, mentre \texttt{Maximum} resta costante. I grafici sono  privi di fluttuazioni rilevanti.
+
+\texttt{LinkedList} (Figure \ref{fig:ll_op}), al contrario, è molto rapida in \texttt{Insert} ($O(1)$), ma inefficiente nelle altre due operazioni, che richiedono una scansione completa della lista ($O(n)$). I tempi variano molto in base alla posizione del massimo, rendendo le curve instabili.
+
+\texttt{SortedLinkedList} (Figure \ref{fig:sll_op}) consente un \texttt{Maximum} e \texttt{Extract Max} rapidi (in quanto il massimo corrisponde al primo elemento), ma è peggiore per quanto riguarda l'\texttt{Insert}, che è lineare e spesso il più lento tra tutte le strutture. Anche qui i grafici sono meno regolari.
+
+In sintesi: \textbf{MaxHeap} è la più solida, mentre \textbf{LinkedList} e \textbf{SortedLinkedList} soffrono in scenari ampi, specialmente nelle operazioni lineari.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.60\textwidth]{Resources/grafici_output/maxheap_confronto_operazioni.png}
+    \caption{Tempi operazioni su MaxHeap}
+    \label{fig:maxheap_op}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.60\textwidth]{Resources/grafici_output/ll_operazioni.png}
+    \caption{Tempi operazioni su LinkedList}
+    \label{fig:ll_op}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.60\textwidth]{Resources/grafici_output/sortedlinkedlist_op_comp.png}
+    \caption{Tempi operazioni su SortedLinkedList}
+    \label{fig:sll_op}
+\end{figure}
+
+\begin{tcolorbox}[colback=lightgray!20,
+                  colframe=black,
+                  arc=3mm, auto outer arc]
+
+NOTA: In figura \ref{fig:sll_op}, le curve delle operazioni \texttt{Maximum} (linea arancione) e \texttt{Extract Max} (linea verde) risultano sovrapposte. Questo accade perché entrambe le operazioni restituiscono il primo elemento della lista ordinata, con un tempo costante ($O(1)$). Le loro prestazioni coincidono e nel grafico le linee si sovrappongono completamente risultando indistinguibili, se non con uno zoom significativo.
+\end{tcolorbox}
+
+\newpage
+\subsubsection{Confronto per operazione}
+
+Analizzando i grafici relativi a ciascuna operazione (\texttt{Insert}, \texttt{Maximum}, \texttt{Extract Max}), è possibile confrontare direttamente le prestazioni delle tre strutture dati a parità di compito.
+
+Nel caso di \textbf{Insert} (Figure \ref{fig:insert}), \texttt{MaxHeap} si distingue per efficienza e regolarità, confermando la sua complessità $O(\log n)$ e mostrando una buona scalabilità. La \texttt{LinkedList}, essendo non ordinata, permette inserimenti istantanei in $O(1)$. Al contrario, \texttt{SortedLinkedList} è fortemente penalizzata: l’inserimento richiede un’operazione lineare di ricerca e inserimento ordinato, risultando la più lenta tra le tre.
+
+Per l’operazione \textbf{Maximum} (Figure \ref{fig:maximum}), \texttt{MaxHeap} e \texttt{SortedLinkedList} accedono direttamente al massimo elemento offrendo una prestazione costante, mentre \texttt{LinkedList} richiede una scansione completa, quindi con tempi di esecuzione lineari $O(n)$.
+
+Infine nel grafico per l'operazione \textbf{Extract Max} (Figure \ref{fig:extractmax}), l'efficienza del \texttt{MaxHeap} è chiaramente visibile. L'operazione di estrazione del massimo in un \texttt{MaxHeap} ha una complessità temporale teorica di $O(\log n)$, dovuta alla necessità di ripristinare la proprietà di heap dopo la rimozione dell'elemento radice. Il grafico mostra che la curva relativa alla \texttt{MaxHeap} (linea blu) presenta un andamento che, pur non essendo perfettamente piatto, cresce molto lentamente al crescere di $n$. Questo comportamento è coerente con una complessità logaritmica. Tuttavia, dato il range di dimensioni dell'input relativamente contenuto (fino a $16000$ elementi), l'incremento di tempo è poco più che costante, suggerendo che per questo intervallo di $N$ il termine logaritmico è ancora piccolo e il costo per operazione rimane estremamente basso.
+
+La \texttt{SortedLinkedList} mostra un tempo di esecuzione quasi costante e molto basso, in linea con una complessità $O(1)$ per l'estrazione del massimo, poiché l'elemento maggiore è sempre in testa alla lista e la sua rimozione implica solo l'aggiornamento del puntatore alla testa. Questo la rende estremamente efficiente per l'operazione di estrazione del massimo.
+
+Al contrario, la \texttt{LinkedList} non ordinata evidenzia le prestazioni peggiori per l'operazione di \texttt{Extract Max}. Questa struttura deve prima scorrere l'intera lista per individuare il valore massimo ($O(n)$) e poi eseguire un'ulteriore operazione per rimuoverlo, che anch'essa può richiedere di scorrere la lista ($O(n)$) nel caso peggiore per trovare il nodo precedente. Di conseguenza, il tempo di esecuzione scala linearmente con la dimensione dell'input, mostrando una netta pendenza verso l'alto.
+
+Anche per questa operazione, \texttt{MaxHeap} si conferma generalmente la struttura più bilanciata ed efficiente.
+
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.60\textwidth]{Resources/grafici_output/insert_confronto_strutture_per_op.png}
+    \caption{Tempi delle varie strutture dati per Insert}
+    \label{fig:insert}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.60\textwidth]{Resources/grafici_output/maximum_confronto_strutture_per_op.png}
+    \caption{Tempi delle varie strutture dati per Maximum}
+    \label{fig:maximum}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.60\textwidth]{Resources/grafici_output/extract_max_confronto_strutture_per_op.png}
+    \caption{Tempi delle varie strutture dati per Extract Max}
+    \label{fig:extractmax}
+\end{figure}
+
+
+\begin{tcolorbox}[colback=lightgray!20,
+                  colframe=black,
+                  arc=3mm, auto outer arc]
+NOTA: In figura \ref{fig:maximum}, le curve delle strutture \texttt{MaxHeap} (linea blu) e \texttt{SortedLinkedList} (linea verde) risultano quasi completamente sovrapposte perché per entrambe le strutture l'operazione di \texttt{Maximum} ha una complessità asintotica costante.
+\end{tcolorbox}
+
+\newpage
+\subsubsection{Analisi Empirica su MaxHeap}
+Mentre per strutture come la \texttt{LinkedList} e la \texttt{SortedLinkedList}, il comportamento asintotico delle operazioni di \texttt{Insert} e \texttt{Extract Max} (in particolare l'andamento lineare per l'inserimento nella lista ordinata e l'estrazione nella lista non ordinata) era già palese dai primi grafici con un range di dimensioni dell'input più limitato, per la \texttt{MaxHeap} la situazione è differente. Le sue complessità teoriche di $O(\log n)$ per le operazioni di inserimento ed estrazione del massimo implicano una crescita dei tempi molto più contenuta rispetto alla complessità lineare ($O(n)$).
+
+Per evidenziare chiaramente questa relazione logaritmica e distinguere l'andamento da un semplice tempo costante per input di piccole dimensioni, è  necessaria un'analisi più  estesa con dimensioni dell'input significativamente maggiori, raggiungendo fino a $n = 100\,000$. 
+
+Per confermare empiricamente la complessità logaritmica di entrambe le operazioni su \texttt{MaxHeap}, ovvero che $T(n) \approx C \cdot \log n$ (dove $C$ è una costante), sono stati realizzati grafici che mostrano i rapporti $T(n)/\log n$ per le operazioni \texttt{Insert} ed \texttt{Extract Max}. Come previsto, tali rapporti tendono a stabilizzarsi verso una costante all'aumentare di $n$. 
+
+
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.60\textwidth]{Resources/grafici_output/ratio_log_maxheap_insert.png}
+    \caption{Grafico empirico di MaxHeap per Insert}
+    \label{fig:ratio_insert}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.60\textwidth]{Resources/grafici_output/rapporto_log_maxheap_insert.png}
+    \caption{Grafico empirico di MaxHeap per Insert}
+    \label{fig:ratio_insert_2}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.60\textwidth]{Resources/grafici_output/ratio_log_maxheap_extract_max.png}
+    \caption{Grafico empirico di MaxHeap per Extract Max}
+    \label{fig:ratio_extractmax}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.60\textwidth]{Resources/grafici_output/rapporto_log_maxheap_extract_max.png}
+    \caption{Grafico empirico di MaxHeap per Extract Max}
+    \label{fig:ratio_extractmax_2}
+\end{figure}
+
+
+\subsubsection{Analisi e Considerazioni sulle Fluttuazioni}
+Durante l'analisi empirica delle prestazioni, in particolare nei grafici del rapporto $T(n)/\log n$ per le operazioni su \texttt{MaxHeap} (Figure \ref{fig:ratio_insert}, \ref{fig:ratio_insert_2}, \ref{fig:ratio_extractmax} e \ref{fig:ratio_extractmax_2}), si osserva un andamento non perfettamente costante del rapporto, bensì una serie di piccole oscillazioni, sia verso l'alto che verso il basso, rispetto al valore medio. Questo comportamento non influenza la validità della complessità asintotica $O(\log n)$ (poiché il trend generale è di stabilità intorno a una costante), ma merita un'analisi delle sue possibili cause.
+
+Le fluttuazioni osservate possono essere attribuite a diversi fattori:
+
+\begin{itemize}
+    \item \textbf{Natura Randomica dei Dati}: Le prestazioni delle strutture dati sono influenzate dalla specificità dei dati e dall'ordine delle operazioni. Sebbene i dati di input siano generati casualmente per ogni test, la specifica sequenza di elementi per gli $n$ inserti o $n$ estrazioni può introdurre variabilità. Ad esempio, per la \texttt{MaxHeap}, un'inserzione che richiede molte risalite nell'albero (\texttt{heap\_increase\_key}) o un'estrazione che necessita di molte discese (\texttt{max\_heapify}) può momentaneamente aumentare il tempo medio. La formula della media mobile \eqref{eq:media_mobile} è stata applicata per smussare queste variazioni a breve termine, ma non le elimina completamente.
+
+    \item \textbf{Precisione del Timer e Granularità di Misura}: Pur utilizzando \texttt{time.perf\_counter()}, che offre un'elevata risoluzione, la misurazione di tempi estremamente brevi (nell'ordine dei micro o nanosecondi, come si vede per le operazioni più veloci) può essere soggetta a un certo "rumore" intrinseco del sistema operativo e dell'hardware. Anche piccole imprecisioni nella temporizzazione si traducono in variazioni relative più significative quando i valori assoluti dei tempi sono molto bassi.
+
+    \item \textbf{Gestione della Memoria e Cache}: La performance di algoritmi e strutture dati è spesso influenzata dall'interazione con la gerarchia di memoria. Accessi alla memoria che causano "cache misses" possono introdurre ritardi imprevedibili. All'aumentare di $N$, la struttura dati potrebbe superare le dimensioni della cache, portando a cali di performance non lineari ma legati all'architettura hardware.
+
+    \item \textbf{Contesto del Sistema Operativo}: Il sistema operativo esegue numerosi processi in background che possono contendere risorse della CPU e della memoria con il programma di benchmark. Interruzioni, cambi di contesto, e la schedulazione dei processi possono influenzare i tempi di esecuzione in modo non deterministico. Sebbene si cerchi di minimizzare queste interferenze isolando il test, non è possibile eliminarle del tutto in un ambiente non strettamente controllato.
+
+    \item \textbf{Effetti della Normalizzazione nel Rapporto $T(n)/f(n)$}: Il tempo medio per singola operazione $T(n)$ è calcolato come specificato nella formula \eqref{eq:tempo_medio}, dividendo il tempo totale per $N$ e mediando sulle ripetizioni. Successivamente, per la verifica della complessità asintotica, si calcola il rapporto $R(n) = T(n)/f(n)$ come in formula \eqref{eq:rapporto_generico}, e specificamente \eqref{eq:rapporti_maxheap} per la \texttt{MaxHeap}. Quando si divide un tempo misurato (che include un certo grado di rumore) per una funzione come $\log n$, che cresce relativamente lentamente, anche piccole variazioni in $T(n)$ possono essere amplificate nel rapporto, specialmente per valori di $n$ a cui $\log n$ è piccolo, causando le oscillazioni osservate.
+\end{itemize}
+Nonostante ciò, la tendenza generale dei rapporti è quella di stabilizzarsi attorno a una costante, rendendo valide le considerazioni effettuate sulle complessità asintotiche per le strutture dati analizzate. Le oscillazioni sono quindi interpretate come rumore di misurazione e variabilità intrinseca dell'ambiente di esecuzione, piuttosto che come deviazioni significative.
+
+
+
+\newpage
+\section{Tesi e Conclusioni Finali}
+\label{sec:conclusioni}
+
+L’analisi condotta sulle tre strutture dati per code con priorità — \texttt{MaxHeap}, \texttt{LinkedList} e \texttt{SortedLinkedList} — ha confermato le complessità teoriche delle operazioni fondamentali: \texttt{Insert}, \texttt{Maximum} ed \texttt{Extract Max}.
+
+\textbf{MaxHeap} si è dimostrata la struttura più efficiente e stabile, con \texttt{Insert} ed \texttt{Extract Max} che mostrano una crescita logaritmica ($O(\log n)$), come evidenziato dai grafici dei rapporti $T(n)/\log n$ (figure \ref{fig:ratio_insert}, \ref{fig:ratio_insert_2}, \ref{fig:ratio_extractmax} e \ref{fig:ratio_extractmax_2}). L’operazione \texttt{Maximum}, a tempo costante ($O(1)$), risulta praticamente piatta (figure \ref{fig:maximum}).
+
+\textbf{SortedLinkedList} presenta invece un profilo misto: ottima per \texttt{Maximum} ed \texttt{Extract Max}, che avvengono in tempo costante grazie alla posizione fissa del massimo (figura \ref{fig:sll_op}), ma penalizzata da un \texttt{Insert} lineare ($O(n)$), come evidenziato nella figura \ref{fig:insert}.
+
+\textbf{LinkedList}, non ordinata, risulta efficiente solo per \texttt{Insert} ($O(1)$), mentre \texttt{Maximum} ed \texttt{Extract Max} sono entrambe lineari ($O(n)$), richiedendo una scansione completa della lista (figure  \ref{fig:ll_op}, \ref{fig:maximum}, \ref{fig:extractmax}).
+
+Nel confronto per operazione, \texttt{MaxHeap} domina nelle tre categorie per scalabilità e tempi ridotti (figure \ref{fig:insert}, \ref{fig:maximum}, \ref{fig:extractmax}). Le strutture lineari soffrono su input crescenti, con curve più ripide e meno regolari.
+
+In particolare, l'estensione sperimentale su \texttt{MaxHeap} fino a $n=100\,000$ ha permesso di osservare chiaramente l’andamento logaritmico delle operazioni, visibile nella tendenza a valore costante delle linee.
+
+Infine, l’uso di medie mobili e ripetizioni multiple ha garantito misure stabili e affidabili, riducendo l’effetto del rumore e delle fluttuazioni casuali. 
+
+L’analisi empirica ha quindi confermato l'ipotesi iniziale per cui  \textbf{MaxHeap} è la scelta più adatta per gestire code di priorità, soprattutto su dataset di grandi dimensioni, in quanto è in grado di combinare buone prestazioni a stabilità.
